@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HORIZON GROUP NETWORKS — Suivi des demandes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<style>
+  :root{
+    --navy:#0A2D64; --navy-deep:#071C42; --blue:#007BFF; --green:#00A859;
+    --gold:#FFC107; --gray:#6C757D; --bg:#F5F7FA; --card:#FFFFFF; --line:#E4E8EF;
+    --ink:#0A2D64; --ink-dim:#5A6B8C;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:'Poppins',sans-serif;background:var(--bg);color:var(--ink);}
+  header{background:var(--navy-deep);padding:18px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;}
+  header .title{color:#fff;font-weight:600;font-size:15px;}
+  header .sub{color:#93A4C7;font-size:12px;}
+  .status-pill{font-size:11.5px;font-weight:600;padding:5px 12px;border-radius:20px;}
+  .status-pill.live{background:#E7F8EF;color:var(--green);}
+  .status-pill.offline{background:#FFF3CD;color:#8a6400;}
+  main{max-width:1180px;margin:0 auto;padding:26px 24px 60px;}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:20px;}
+  .toolbar select,.toolbar input{
+    border:1.5px solid var(--line);border-radius:8px;padding:9px 12px;font-family:'Poppins',sans-serif;font-size:13px;background:#fff;
+  }
+  .toolbar input{flex:1;min-width:180px;}
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px;}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;}
+  .kpi .num{font-size:22px;font-weight:700;color:var(--navy-deep);}
+  .kpi .lbl{font-size:12px;color:var(--ink-dim);margin-top:2px;}
+  table{width:100%;border-collapse:collapse;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  thead{background:#F0F3F9;}
+  th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:0.03em;color:var(--ink-dim);padding:12px 14px;}
+  td{padding:13px 14px;font-size:13px;border-top:1px solid var(--line);vertical-align:top;}
+  tr:hover td{background:#FAFBFD;}
+  .tag{font-size:11px;font-weight:600;padding:4px 10px;border-radius:14px;white-space:nowrap;}
+  .tag.need{background:#EAF2FF;color:var(--blue);}
+  .tag.offer{background:#F1FBF6;color:var(--green);}
+  select.status-select{border:1.5px solid var(--line);border-radius:7px;padding:6px 8px;font-size:12px;font-family:'Poppins',sans-serif;}
+  .ref{font-weight:600;color:var(--navy-deep);}
+  .empty{text-align:center;padding:60px 20px;color:var(--ink-dim);font-size:14px;}
+  .desc-cell{max-width:220px;color:var(--ink-dim);}
+
+  /* ---------- LOGIN GATE ---------- */
+  #loginGate{
+    position:fixed;inset:0;background:var(--navy-deep);display:flex;align-items:center;justify-content:center;
+    padding:24px;z-index:100;
+  }
+  .login-card{background:#fff;border-radius:14px;padding:32px 28px;max-width:360px;width:100%;}
+  .login-card h2{font-size:18px;font-weight:700;color:var(--navy-deep);margin-bottom:6px;}
+  .login-card p{font-size:12.8px;color:var(--ink-dim);margin-bottom:22px;}
+  .login-card label{display:block;font-size:12px;font-weight:600;color:var(--navy-deep);margin-bottom:6px;}
+  .login-card input{
+    width:100%;border:1.5px solid var(--line);border-radius:8px;padding:11px 13px;font-family:'Poppins',sans-serif;
+    font-size:14px;margin-bottom:14px;
+  }
+  .login-card button{
+    width:100%;background:var(--navy);color:#fff;border:none;padding:12px;border-radius:8px;font-weight:700;
+    font-size:14px;font-family:'Poppins',sans-serif;
+  }
+  .login-error{font-size:12.5px;color:#C4553A;margin-top:10px;min-height:16px;}
+  #appContent{display:none;}
+  .logout-btn{background:rgba(255,255,255,0.1);color:#fff;border:none;font-size:12px;padding:8px 14px;border-radius:7px;font-family:'Poppins',sans-serif;font-weight:600;}
+</style>
+</head>
+<body>
+
+<div id="loginGate">
+  <div class="login-card">
+    <h2>Accès équipe Horizon</h2>
+    <p>Cette page contient des données clients. Connexion requise.</p>
+    <label>Email</label>
+    <input type="email" id="loginEmail" placeholder="vous@horizongroupnetworks.com">
+    <label>Mot de passe</label>
+    <input type="password" id="loginPassword" placeholder="••••••••">
+    <button onclick="doLogin()">Se connecter</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div id="appContent">
+<header>
+  <div>
+    <div class="title">HORIZON GROUP NETWORKS — Suivi des demandes</div>
+    <div class="sub">Tableau de bord interne · non destiné au public</div>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span class="status-pill" id="connStatus">Vérification...</span>
+    <button class="logout-btn" onclick="doLogout()">Déconnexion</button>
+  </div>
+</header>
+
+<main>
+  <div class="kpis">
+    <div class="kpi"><div class="num" id="kpiTotal">0</div><div class="lbl">Demandes reçues</div></div>
+    <div class="kpi"><div class="num" id="kpiNew">0</div><div class="lbl">Nouvelles (à qualifier)</div></div>
+    <div class="kpi"><div class="num" id="kpiProgress">0</div><div class="lbl">En cours</div></div>
+    <div class="kpi"><div class="num" id="kpiDone">0</div><div class="lbl">Résolues</div></div>
+  </div>
+
+  <div class="toolbar">
+    <select id="filterProfile">
+      <option value="">Tous les profils</option>
+      <option value="need">Besoins</option>
+      <option value="offer">Offres</option>
+    </select>
+    <select id="filterStatus">
+      <option value="">Tous les statuts</option>
+      <option value="nouveau">Nouveau</option>
+      <option value="en-cours">En cours</option>
+      <option value="resolu">Résolu</option>
+    </select>
+    <input type="text" id="searchBox" placeholder="Rechercher (nom, entreprise, référence, description)...">
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Référence</th>
+        <th>Profil</th>
+        <th>Domaine</th>
+        <th>Description</th>
+        <th>Contact</th>
+        <th>Reçu le</th>
+        <th>Statut</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr><td colspan="7" class="empty">Chargement des demandes...</td></tr>
+    </tbody>
+  </table>
+</main>
+</div>
+
+<script>
+  // Utilisez la même config Firebase que sur horizon-group-networks.html
+  const firebaseConfig = {
+    apiKey: "AIzaSyD_SQZPNwpnIiDNoB_jbs5ciRgCjYkQ4Vk",
+    authDomain: "horizon-group-networks.firebaseapp.com",
+    projectId: "horizon-group-networks",
+    storageBucket: "horizon-group-networks.firebasestorage.app",
+    messagingSenderId: "772532789854",
+    appId: "1:772532789854:web:7e7d194c1213a3cc3c8acf",
+    measurementId: "G-YX56MFF1EH"
+  };
+
+  let db = null, auth = null, firebaseReady = false;
+  try{
+    if(firebaseConfig.projectId !== "VOTRE_PROJET" && window.firebase){
+      firebase.initializeApp(firebaseConfig);
+      db = firebase.firestore();
+      auth = firebase.auth();
+      firebaseReady = true;
+    }
+  }catch(e){ console.warn(e); }
+
+  function doLogin(){
+    const email = document.getElementById('loginEmail').value;
+    const pass = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    errEl.textContent = '';
+    if(!firebaseReady){
+      errEl.textContent = "Firebase non configuré — impossible de vérifier l'identité pour le moment.";
+      return;
+    }
+    auth.signInWithEmailAndPassword(email, pass).catch(err=>{
+      errEl.textContent = 'Connexion refusée : identifiants incorrects.';
+      console.warn(err);
+    });
+  }
+
+  function doLogout(){
+    if(auth){ auth.signOut(); }
+  }
+
+  if(firebaseReady){
+    auth.onAuthStateChanged(user=>{
+      if(user){
+        document.getElementById('loginGate').style.display = 'none';
+        document.getElementById('appContent').style.display = 'block';
+        loadData();
+      } else {
+        document.getElementById('loginGate').style.display = 'flex';
+        document.getElementById('appContent').style.display = 'none';
+      }
+    });
+  } else {
+    // Pas de config Firebase : on affiche un avertissement clair plutôt que d'exposer les données.
+    document.querySelector('.login-card p').textContent =
+      "Configurez firebaseConfig et activez l'authentification Email/Mot de passe dans la console Firebase pour utiliser ce tableau de bord.";
+  }
+
+  let records = [];
+
+  function loadLocal(){
+    return JSON.parse(localStorage.getItem('horizon_demandes_offline') || '[]')
+      .map((r,i)=>({ id:'local-'+i, ...r }));
+  }
+
+  async function loadData(){
+    const connEl = document.getElementById('connStatus');
+    if(firebaseReady){
+      try{
+        const snap = await db.collection('horizon_demandes').orderBy('createdAt','desc').get();
+        records = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+        connEl.textContent = 'Connecté à Firestore';
+        connEl.className = 'status-pill live';
+      }catch(e){
+        console.warn(e);
+        records = loadLocal();
+        connEl.textContent = 'Firestore indisponible — données locales';
+        connEl.className = 'status-pill offline';
+      }
+    } else {
+      records = loadLocal();
+      connEl.textContent = 'Mode local (Firebase non configuré)';
+      connEl.className = 'status-pill offline';
+    }
+    render();
+  }
+
+  async function updateStatus(id, newStatus){
+    const rec = records.find(r=>r.id===id);
+    if(rec) rec.status = newStatus;
+    if(firebaseReady && !String(id).startsWith('local-')){
+      try{ await db.collection('horizon_demandes').doc(id).update({ status:newStatus }); }
+      catch(e){ console.warn(e); }
+    } else {
+      const list = loadLocal();
+      const idx = list.findIndex((r,i)=> 'local-'+i === id);
+      if(idx>-1){ list[idx].status = newStatus; localStorage.setItem('horizon_demandes_offline', JSON.stringify(list)); }
+    }
+    render();
+  }
+
+  function render(){
+    const profileF = document.getElementById('filterProfile').value;
+    const statusF = document.getElementById('filterStatus').value;
+    const search = document.getElementById('searchBox').value.toLowerCase();
+
+    let filtered = records.filter(r=>{
+      if(profileF && r.profile!==profileF) return false;
+      const st = r.status || 'nouveau';
+      if(statusF && st!==statusF) return false;
+      if(search){
+        const hay = [r.ref,r.name,r.company,r.description,r.domainLabel].join(' ').toLowerCase();
+        if(!hay.includes(search)) return false;
+      }
+      return true;
+    });
+
+    document.getElementById('kpiTotal').textContent = records.length;
+    document.getElementById('kpiNew').textContent = records.filter(r=>(r.status||'nouveau')==='nouveau').length;
+    document.getElementById('kpiProgress').textContent = records.filter(r=>r.status==='en-cours').length;
+    document.getElementById('kpiDone').textContent = records.filter(r=>r.status==='resolu').length;
+
+    const tbody = document.getElementById('tbody');
+    if(filtered.length===0){
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">Aucune demande ne correspond à ces filtres.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = filtered.map(r=>{
+      const st = r.status || 'nouveau';
+      const dateLabel = r.createdAtLabel || (r.createdAt ? new Date(r.createdAt).toLocaleString('fr-FR') : '—');
+      return '<tr>'
+        + '<td class="ref">'+(r.ref||'—')+'</td>'
+        + '<td><span class="tag '+(r.profile||'need')+'">'+(r.profile==='offer'?'Offre':'Besoin')+'</span></td>'
+        + '<td>'+(r.domainLabel||'—')+'</td>'
+        + '<td class="desc-cell">'+((r.description||'—').slice(0,90))+'</td>'
+        + '<td>'+(r.name||'—')+'<br><span style="color:var(--ink-dim);font-size:11.5px;">'+(r.company||'')+' · '+(r.phone||r.email||'')+'</span></td>'
+        + '<td>'+dateLabel+'</td>'
+        + '<td><select class="status-select" onchange="updateStatus(\''+r.id+'\', this.value)">'
+          + '<option value="nouveau"'+(st==='nouveau'?' selected':'')+'>Nouveau</option>'
+          + '<option value="en-cours"'+(st==='en-cours'?' selected':'')+'>En cours</option>'
+          + '<option value="resolu"'+(st==='resolu'?' selected':'')+'>Résolu</option>'
+        + '</select></td>'
+        + '</tr>';
+    }).join('');
+  }
+
+  document.getElementById('filterProfile').addEventListener('change', render);
+  document.getElementById('filterStatus').addEventListener('change', render);
+  document.getElementById('searchBox').addEventListener('input', render);
+</script>
+
+</body>
+</html>
