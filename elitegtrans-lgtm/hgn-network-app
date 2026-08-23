@@ -1,1 +1,9 @@
-
+hgn-network-app/
+├── src/
+├── public/
+├── package.json
+├── package-lock.json / bun.lock
+├── vite.config.*
+├── tsconfig.json
+├── netlify.toml
+└── ...
